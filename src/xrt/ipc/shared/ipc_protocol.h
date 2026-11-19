@@ -97,6 +97,15 @@ struct ipc_tracking_origin_list
  */
 struct ipc_tracking_origin_info
 {
+	/*!
+	 * The service-side @ref xrt_tracking_origin_id, synchronized to IPC
+	 * clients so that @ref xrt_tracking_origin::id matches across all
+	 * clients connected to the same service. This is distinct from the
+	 * tracking origin IPC ID used to look up tracking origins in IPC
+	 * messages.
+	 */
+	XRT_ALIGNAS(8) uint64_t xrt_tracking_origin_id_val;
+
 	//! For debugging.
 	char name[XRT_TRACKING_NAME_LEN];
 

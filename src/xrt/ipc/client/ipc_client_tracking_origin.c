@@ -92,6 +92,7 @@ ipc_client_tracking_origin_manager_get(struct ipc_client_tracking_origin_manager
 	// Create a new tracking origin
 	struct xrt_tracking_origin *xtrack = U_TYPED_CALLOC(struct xrt_tracking_origin);
 
+	xtrack->id.val = info.xrt_tracking_origin_id_val;
 	memcpy(xtrack->name, info.name, sizeof(xtrack->name));
 	xtrack->type = info.type;
 	xtrack->initial_offset = info.offset;

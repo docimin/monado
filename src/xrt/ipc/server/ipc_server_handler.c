@@ -1721,6 +1721,7 @@ ipc_handle_tracking_origin_get_info(volatile struct ipc_client_state *ics,
 	GET_XTRACK_OR_RETURN(ics, tracking_origin_ipc_id, xtrack);
 
 	// Copy tracking origin info to output
+	out_info->xrt_tracking_origin_id_val = xtrack->id.val;
 	memcpy(out_info->name, xtrack->name, sizeof(out_info->name));
 	out_info->type = xtrack->type;
 	out_info->offset = xtrack->initial_offset;

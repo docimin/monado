@@ -26,6 +26,10 @@ struct ipc_connection;
  * Maintains a hashmap of tracking origin IPC IDs to xrt_tracking_origin objects.
  * Fetches tracking origin info from the server on-demand.
  *
+ * The IPC IDs are per-client-connection indices used in IPC messages, not
+ * @ref xrt_tracking_origin::id, which is synchronized from the service via
+ * @ref ipc_tracking_origin_info.
+ *
  * @ingroup ipc_client
  */
 struct ipc_client_tracking_origin_manager
