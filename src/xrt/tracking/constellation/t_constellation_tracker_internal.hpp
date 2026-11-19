@@ -447,6 +447,7 @@ struct ConstellationTrackerBase
 	    .destroy = constellation_tracker_node_destroy,
 	};
 	xrt_tracking_origin tracking_origin = {
+	    .id = XRT_TRACKING_ORIGIN_ID_INVALID,
 	    .name = "Constellation Tracker",
 	    .type = XRT_TRACKING_TYPE_CONSTELLATION,
 	    .initial_offset =
