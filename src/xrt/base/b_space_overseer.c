@@ -1501,7 +1501,7 @@ b_space_overseer_link_space_to_device(struct b_space_overseer *uso, struct xrt_s
 		        u_str_xrt_device_name(xdev->name), xdev->id.val);
 	}
 
-	struct b_tracked_device *new_btd = b_tracked_device_create(xs);
+	struct b_tracked_device *new_btd = b_tracked_device_create(xdev, xs);
 
 	u_hashmap_int_insert(uso->xdev_map, key, new_btd);
 

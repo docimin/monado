@@ -20,6 +20,13 @@ struct b_tracked_device
 	struct xrt_reference reference;
 	struct xrt_space *space;
 
+	/*!
+	 * Borrowed pointer, only used for debug printing. The device must be
+	 * removed from the space overseer before it is destroyed, or the space
+	 * overseer must be destroyed first.
+	 */
+	struct xrt_device *xdev;
+
 	struct xrt_space **pose_spaces;
 	uint32_t pose_space_count;
 	uint32_t pose_space_capacity;
@@ -38,12 +45,14 @@ b_tracked_device_destroy(struct b_tracked_device *btd)
 }
 
 struct b_tracked_device *
-b_tracked_device_create(struct xrt_space *space)
+b_tracked_device_create(struct xrt_device *xdev, struct xrt_space *space)
 {
+	assert(xdev != NULL);
 	assert(space != NULL);
 
 	struct b_tracked_device *btd = U_TYPED_CALLOC(struct b_tracked_device);
 	btd->reference.count = 1;
+	btd->xdev = xdev;
 
 	xrt_space_reference(&btd->space, space);
 
@@ -77,6 +86,13 @@ b_tracked_device_get_space(struct b_tracked_device *btd)
 {
 	assert(btd != NULL);
 	return btd->space;
+}
+
+struct xrt_device *
+b_tracked_device_get_xdev(struct b_tracked_device *btd)
+{
+	assert(btd != NULL);
+	return btd->xdev;
 }
 
 void
