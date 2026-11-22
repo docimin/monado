@@ -80,7 +80,7 @@ b_tracked_device_get_space(struct b_tracked_device *btd)
 }
 
 void
-b_tracked_device_track_pose_space(struct b_tracked_device *btd, struct xrt_space *xs)
+b_tracked_device_track_pose_space_write_locked(struct b_tracked_device *btd, struct xrt_space *xs)
 {
 	assert(btd != NULL);
 	assert(xs != NULL);
@@ -101,7 +101,7 @@ b_tracked_device_track_pose_space(struct b_tracked_device *btd, struct xrt_space
 }
 
 void
-b_tracked_device_untrack_pose_space(struct b_tracked_device *btd, struct xrt_space *xs)
+b_tracked_device_untrack_pose_space_write_locked(struct b_tracked_device *btd, struct xrt_space *xs)
 {
 	assert(btd != NULL);
 	assert(xs != NULL);
@@ -118,7 +118,9 @@ b_tracked_device_untrack_pose_space(struct b_tracked_device *btd, struct xrt_spa
 }
 
 void
-b_tracked_device_for_each_pose_space(struct b_tracked_device *btd, b_tracked_device_pose_space_cb cb, void *priv)
+b_tracked_device_for_each_pose_space_read_locked(struct b_tracked_device *btd,
+                                                 b_tracked_device_pose_space_cb cb,
+                                                 void *priv)
 {
 	assert(btd != NULL);
 	assert(cb != NULL);
@@ -129,7 +131,7 @@ b_tracked_device_for_each_pose_space(struct b_tracked_device *btd, b_tracked_dev
 }
 
 void
-b_tracked_device_clear_pose_spaces(struct b_tracked_device *btd)
+b_tracked_device_clear_pose_spaces_write_locked(struct b_tracked_device *btd)
 {
 	assert(btd != NULL);
 	btd->pose_space_count = 0;

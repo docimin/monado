@@ -342,7 +342,7 @@ zombiefy_space_write_locked(struct u_space *us)
 }
 
 static void
-zombiefy_pose_space_cb(struct xrt_space *xs, void *priv)
+zombiefy_pose_space_cb_write_locked(struct xrt_space *xs, void *priv)
 {
 	(void)priv;
 
@@ -366,8 +366,8 @@ hashmap_unreference_tracked_device_items(void *item, void *priv)
 	 * the tracked-device destroy would otherwise see a non-empty pose list.
 	 * Zombify and clear first, matching remove_device.
 	 */
-	b_tracked_device_for_each_pose_space(btd, zombiefy_pose_space_cb, NULL);
-	b_tracked_device_clear_pose_spaces(btd);
+	b_tracked_device_for_each_pose_space_read_locked(btd, zombiefy_pose_space_cb_write_locked, NULL);
+	b_tracked_device_clear_pose_spaces_write_locked(btd);
 	b_tracked_device_reference(&btd, NULL);
 }
 
@@ -380,12 +380,12 @@ hashmap_unreference_tracked_device_items(void *item, void *priv)
 
 /*!
  * For each space, push the relation of that space and then traverse by calling
- * @p push_then_traverse again with the parent space. That means traverse goes
+ * @p push_then_traverse_read_locked again with the parent space. That means traverse goes
  * from a leaf space to a the root space, relations are pushed in the same
  * order.
  */
 static void
-push_then_traverse(struct xrt_relation_chain *xrc, struct u_space *space, int64_t at_timestamp_ns)
+push_then_traverse_read_locked(struct xrt_relation_chain *xrc, struct u_space *space, int64_t at_timestamp_ns)
 {
 	switch (space->type) {
 	case U_SPACE_TYPE_ZOMBIE:
@@ -407,17 +407,17 @@ push_then_traverse(struct xrt_relation_chain *xrc, struct u_space *space, int64_
 
 	// Please tail-call optimise this miss compiler.
 	assert(space->next != NULL);
-	push_then_traverse(xrc, space->next, at_timestamp_ns);
+	push_then_traverse_read_locked(xrc, space->next, at_timestamp_ns);
 }
 
 /*!
- * For each space, traverse by calling @p traverse_then_push_inverse again with
+ * For each space, traverse by calling @p traverse_then_push_inverse_read_locked again with
  * the parent space then push the inverse of the relation of that. That means
  * traverse goes from a leaf space to a the root space, relations are pushed in
  * the reversed order.
  */
 static void
-traverse_then_push_inverse(struct xrt_relation_chain *xrc, struct u_space *space, int64_t at_timestamp_ns)
+traverse_then_push_inverse_read_locked(struct xrt_relation_chain *xrc, struct u_space *space, int64_t at_timestamp_ns)
 {
 	// Done traversing.
 	switch (space->type) {
@@ -433,7 +433,7 @@ traverse_then_push_inverse(struct xrt_relation_chain *xrc, struct u_space *space
 
 	// Can't tail-call optimise this one :(
 	assert(space->next != NULL);
-	traverse_then_push_inverse(xrc, space->next, at_timestamp_ns);
+	traverse_then_push_inverse_read_locked(xrc, space->next, at_timestamp_ns);
 
 	switch (space->type) {
 	case U_SPACE_TYPE_NULL: break; // No-op
@@ -463,8 +463,8 @@ build_relation_chain_read_locked(struct b_space_overseer *uso,
 	assert(base != NULL);
 	assert(target != NULL);
 
-	push_then_traverse(xrc, target, at_timestamp_ns);
-	traverse_then_push_inverse(xrc, base, at_timestamp_ns);
+	push_then_traverse_read_locked(xrc, target, at_timestamp_ns);
+	traverse_then_push_inverse_read_locked(xrc, base, at_timestamp_ns);
 }
 
 static void
@@ -518,7 +518,7 @@ space_destroy(struct xrt_space *xs)
 		pthread_rwlock_wrlock(&uso->lock);
 		struct b_tracked_device *btd = find_xdev_tracked_device_read_locked(uso, us->pose.xdev);
 		if (btd != NULL) {
-			b_tracked_device_untrack_pose_space(btd, xs);
+			b_tracked_device_untrack_pose_space_write_locked(btd, xs);
 		}
 		pthread_rwlock_unlock(&uso->lock);
 	}
@@ -693,7 +693,7 @@ create_pose_space(struct xrt_space_overseer *xso,
 	us->pose.xname = name;
 	us->pose.overseer = uso;
 
-	b_tracked_device_track_pose_space(btd, &us->base);
+	b_tracked_device_track_pose_space_write_locked(btd, &us->base);
 
 	pthread_rwlock_unlock(&uso->lock);
 
@@ -1262,8 +1262,8 @@ remove_device(struct xrt_space_overseer *xso, struct xrt_device *xdev)
 
 	struct b_tracked_device *btd = find_xdev_tracked_device_read_locked(uso, xdev);
 	if (btd != NULL) {
-		b_tracked_device_for_each_pose_space(btd, zombiefy_pose_space_cb, NULL);
-		b_tracked_device_clear_pose_spaces(btd);
+		b_tracked_device_for_each_pose_space_read_locked(btd, zombiefy_pose_space_cb_write_locked, NULL);
+		b_tracked_device_clear_pose_spaces_write_locked(btd);
 
 		uint64_t key = xdev->id.val;
 		u_hashmap_int_erase(uso->xdev_map, key);
