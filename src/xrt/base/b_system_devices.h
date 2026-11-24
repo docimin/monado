@@ -36,7 +36,7 @@ struct b_system_devices
 	//! Optional frame context for visual tracking.
 	struct xrt_frame_context xfctx;
 
-	//! Optional shared tracking origin.
+	//! Optional shared tracking origin, initialized by the allocate functions.
 	struct xrt_tracking_origin origin;
 };
 
