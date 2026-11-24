@@ -696,8 +696,9 @@ link_space_to_device_write_locked(struct b_space_overseer *uso,
 		 * that object here skips zombify on remove_device and can leave
 		 * destroy asserting on a non-empty pose list.
 		 */
-		U_LOG_W("Device '%s' (name=%s, id=%" PRIu64 ") already has a space attached!", xdev->str,
+		U_LOG_E("Device '%s' (name=%s, id=%" PRIu64 ") already has a space attached!", xdev->str,
 		        u_str_xrt_device_name(xdev->name), xdev->id.val);
+		assert(false);
 	}
 
 	struct b_tracked_device *new_btd = b_tracked_device_create(xdev, xs);
