@@ -365,6 +365,7 @@ b_system_devices_static_finalize(struct b_system_devices_static *bsysds,
 	bsysds->cached.gamepad = gamepad_index;
 
 	u_system_devices_supported_from_static_roles(xsysd, &xsysd->supported);
+	u_tracking_origin_check_xdevs(xsysd->static_xdevs, xsysd->static_xdev_count);
 
 	return notify_chirality(bsysds);
 }

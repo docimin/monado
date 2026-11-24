@@ -143,6 +143,9 @@ b_system_devices_static_allocate(void);
  * The @ref xrt_system_devices::static_roles must be set before calling this,
  * as it also fills in @ref xrt_system_devices::supported from them.
  *
+ * The tracking origins of all of the static devices must already have been
+ * initialized with an ID, see @ref u_tracking_origin_init. This is checked.
+ *
  * @ingroup base
  */
 xrt_result_t
