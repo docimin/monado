@@ -66,14 +66,14 @@ typedef int pid_t;
  */
 
 /*!
- * Information about a device in the device list.
+ * Information about a tracking origin in the tracking origin list.
  *
  * @ingroup ipc
  */
 struct ipc_tracking_origin_list_entry
 {
-	//! Tracking origin ID
-	uint32_t id;
+	//! Tracking origin IPC ID, not @ref xrt_tracking_origin::id.
+	uint32_t ipc_id;
 };
 
 /*!
@@ -158,8 +158,11 @@ struct ipc_device_info
 	 */
 	uint64_t xrt_device_id_val;
 
-	//! Which tracking system origin is this device attached to.
-	XRT_ALIGNAS(8) uint32_t tracking_origin_id;
+	/*!
+	 * IPC ID of the tracking origin this device is attached to, not the
+	 * same as @ref xrt_tracking_origin::id.
+	 */
+	XRT_ALIGNAS(8) uint32_t tracking_origin_ipc_id;
 
 	//! A string describing the device.
 	char str[XRT_DEVICE_NAME_LEN];
