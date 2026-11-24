@@ -17,6 +17,8 @@
 extern "C" {
 #endif
 
+struct xrt_device;
+
 
 /*!
  * Initialize a tracking origin, to be called by whatever allocates the
@@ -30,6 +32,27 @@ extern "C" {
 void
 u_tracking_origin_init(struct xrt_tracking_origin *xto, enum xrt_tracking_type type, const char *fmt, ...)
     XRT_PRINTF_FORMAT(3, 4);
+
+/*!
+ * Check that the tracking origin of the given device has an ID, logs an error
+ * and asserts if it doesn't. A NULL device or one without a tracking origin
+ * passes the check.
+ *
+ * @ingroup aux_util
+ */
+void
+u_tracking_origin_check_xdev(const struct xrt_device *xdev);
+
+/*!
+ * Check that the tracking origins of all of the given devices have an ID,
+ * logs a list of all of the devices that don't and then asserts. NULL devices
+ * and devices without a tracking origin pass the check. @p xdevs may only be
+ * NULL if @p xdev_count is zero.
+ *
+ * @ingroup aux_util
+ */
+void
+u_tracking_origin_check_xdevs(struct xrt_device *const *xdevs, size_t xdev_count);
 
 
 #ifdef __cplusplus
