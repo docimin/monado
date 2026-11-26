@@ -49,6 +49,7 @@
 DEBUG_GET_ONCE_NUM_OPTION(preferred_at_least_image_count, "XRT_COMPOSITOR_PREFERRED_IMAGE_COUNT", 2)
 DEBUG_GET_ONCE_BOOL_OPTION(use_present_wait, "XRT_COMPOSITOR_USE_PRESENT_WAIT", false)
 DEBUG_GET_ONCE_BOOL_OPTION(use_display_timing, "XRT_COMPOSITOR_USE_DISPLAY_TIMING", true)
+DEBUG_GET_ONCE_BOOL_OPTION(vblank_to_first_pixel, "XRT_COMPOSITOR_VBLANK_TO_FIRST_PIXEL", true)
 
 static inline struct vk_bundle *
 get_vk(struct comp_target_swapchain *cts)
@@ -438,6 +439,51 @@ do_update_timings_google_display_timing(struct comp_target_swapchain *cts)
 	free(timings);
 }
 
+/*!
+ * The display control events arrive when the vertical blanking starts, while the pacer wants
+ * the time the first pixel of the next frame goes out. The two are the blanking interval
+ * apart: the part of the frame period the display does not spend on scanout. That is a
+ * fraction of a millisecond on most displays, but several milliseconds on a Valve Index.
+ *
+ * Without this the compositor presents while the previous frame is still being scanned out,
+ * which shows as a tear line on drivers that flip right away, and the predicted display time
+ * is early by the same amount.
+ */
+static int64_t
+get_vblank_to_first_pixel_out_ns(struct comp_target_swapchain *cts)
+{
+	struct comp_compositor *c = cts->base.c;
+
+	if (!debug_get_bool_option_vblank_to_first_pixel()) {
+		return 0;
+	}
+	if (c->xdev == NULL || !c->xdev->supported.compositor_info) {
+		return 0;
+	}
+
+	struct xrt_device_compositor_info info = {0};
+	xrt_result_t xret = xrt_device_get_compositor_info(c->xdev, &c->xdev_compositor_mode, &info);
+	if (xret != XRT_SUCCESS) {
+		return 0;
+	}
+
+	int64_t period_ns = c->xdev_compositor_mode.frame_interval_ns;
+	if (info.scanout_time_ns <= 0 || info.scanout_time_ns >= period_ns) {
+		return 0;
+	}
+
+	int64_t blanking_ns = period_ns - info.scanout_time_ns;
+
+	static int64_t logged_ns = -1;
+	if (logged_ns != blanking_ns) {
+		logged_ns = blanking_ns;
+		COMP_INFO(c, "Vertical blanking is %.3fms of the %.3fms frame, presenting inside it.",
+		          time_ns_to_ms_f(blanking_ns), time_ns_to_ms_f(period_ns));
+	}
+
+	return blanking_ns;
+}
+
 static void
 do_update_timings_vblank_thread(struct comp_target_swapchain *cts)
 {
@@ -453,6 +499,7 @@ do_update_timings_vblank_thread(struct comp_target_swapchain *cts)
 	os_thread_helper_unlock(&cts->vblank.event_thread);
 
 	if (last_vblank_ns) {
+		last_vblank_ns += get_vblank_to_first_pixel_out_ns(cts);
 		u_pc_update_vblank_from_display_control(cts->upc, last_vblank_ns);
 	}
 }

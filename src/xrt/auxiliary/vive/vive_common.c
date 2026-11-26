@@ -72,6 +72,22 @@ vive_variant_scanout_info(enum VIVE_VARIANT variant,
 		*out_scanout_direction = XRT_SCANOUT_DIRECTION_TOP_TO_BOTTOM;
 		*out_scanout_time_ns = frame_period_ns * 2448.0 / 2574.0;
 		return true;
+	case VIVE_VARIANT_INDEX: {
+		/*
+		 * The Index sends its 1600 lines at the same line rate in every mode (2960 pixel
+		 * clocks at 686 MHz per line) and only stretches the vertical blanking to get the
+		 * lower refresh rates: about 4.2 ms of blanking at 90 Hz and 5.6 ms at 80 Hz. The
+		 * backlight then lights the whole panel at once, so the refresh is global.
+		 */
+		time_duration_ns scanout_time_ns = 6903790;
+		if (scanout_time_ns > frame_period_ns) {
+			scanout_time_ns = frame_period_ns;
+		}
+		*out_panel_refresh_type = XRT_PANEL_REFRESH_TYPE_GLOBAL;
+		*out_scanout_direction = XRT_SCANOUT_DIRECTION_TOP_TO_BOTTOM;
+		*out_scanout_time_ns = scanout_time_ns;
+		return true;
+	}
 	default:
 		*out_panel_refresh_type = XRT_PANEL_REFRESH_TYPE_GLOBAL;
 		*out_scanout_direction = XRT_SCANOUT_DIRECTION_NONE;
