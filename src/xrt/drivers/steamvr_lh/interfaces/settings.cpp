@@ -16,6 +16,7 @@
 #include "settings.hpp"
 #include "context.hpp"
 #include "util/u_json.hpp"
+#include "util/u_logging.h"
 
 using namespace std::string_view_literals;
 
@@ -24,6 +25,55 @@ DEBUG_GET_ONCE_FLOAT_OPTION(lh_default_brightness, "LH_DEFAULT_BRIGHTNESS", 1.0)
 DEBUG_GET_ONCE_BOOL_OPTION(lh_standby_on_exit, "LH_STANDBY_ON_EXIT", false)
 
 using xrt::auxiliary::util::json::JSONNode;
+
+#define SETTINGS_TRACE(...) U_LOG_IFL_T(context->log_level, __VA_ARGS__)
+
+namespace {
+
+/*
+ * Settings the Lighthouse driver uses to set up the Valve Index display (it programs them into
+ * the headset when it starts). They are answered from the settings files like SteamVR does,
+ * every other numeric setting still reads as 0.
+ */
+bool
+is_index_display_setting(const char *section, const char *key)
+{
+	if (section == nullptr || key == nullptr) {
+		return false;
+	}
+
+	const std::string_view s{section};
+	const std::string_view k{key};
+
+	if (s == vr::k_pch_SteamVR_Section) {
+		// Display compatibility mode from SteamVR's video settings.
+		return k == "displayPortTrainingMode"sv;
+	}
+	if (s == "driver_lighthouse"sv) {
+		// Without the column correction the panels show a wobbling band while the head moves.
+		return k == "indexHmdColumnCorrection"sv || k == "indexHmdBrightness"sv ||
+		       k.rfind("indexHmdColumnOffset_"sv, 0) == 0;
+	}
+	return false;
+}
+
+//! Looks a setting up like SteamVR does: the user's steamvr.vrsettings first, then the driver's defaults.
+JSONNode
+find_setting(const JSONNode &user, const JSONNode &defaults, const char *section, const char *key)
+{
+	for (const JSONNode *root : {&user, &defaults}) {
+		if (!root->isObject() || !root->hasKey(section)) {
+			continue;
+		}
+		JSONNode sec = (*root)[section];
+		if (sec.isObject() && sec.hasKey(key)) {
+			return sec[key];
+		}
+	}
+	return JSONNode{};
+}
+
+} // namespace
 
 Settings::Settings(const std::string &steam_install, const std::string &steamvr_install, Context *context)
     : steamvr_settings(JSONNode::loadFromFile(steam_install + "/config/steamvr.vrsettings")),
@@ -71,13 +121,33 @@ Settings::GetBool(const char *pchSection, const char *pchSettingsKey, vr::EVRSet
 	if (pchSection == std::string_view{vr::k_pch_Power_Section} && pchSettingsKey == "powerOffOnExit"sv)
 		return debug_get_bool_option_lh_standby_on_exit();
 
-	return false;
+	bool ret = false;
+	if (is_index_display_setting(pchSection, pchSettingsKey)) {
+		JSONNode value = find_setting(steamvr_settings, driver_defaults, pchSection, pchSettingsKey);
+		if (value.isBool()) {
+			ret = value.asBool();
+		} else if (value.isNumber()) {
+			ret = value.asDouble() != 0.0;
+		}
+	}
+	SETTINGS_TRACE("GetBool(%s, %s) -> %d", pchSection, pchSettingsKey, ret);
+	return ret;
 }
 
 int32_t
 Settings::GetInt32(const char *pchSection, const char *pchSettingsKey, vr::EVRSettingsError *peError)
 {
-	return 0;
+	int32_t ret = 0;
+	if (is_index_display_setting(pchSection, pchSettingsKey)) {
+		JSONNode value = find_setting(steamvr_settings, driver_defaults, pchSection, pchSettingsKey);
+		if (value.isBool()) {
+			ret = value.asBool() ? 1 : 0;
+		} else if (value.isNumber()) {
+			ret = (int32_t)value.asDouble();
+		}
+	}
+	SETTINGS_TRACE("GetInt32(%s, %s) -> %d", pchSection, pchSettingsKey, ret);
+	return ret;
 }
 
 float
@@ -92,7 +162,16 @@ Settings::GetFloat(const char *pchSection, const char *pchSettingsKey, vr::EVRSe
 			return 0.f;
 		}
 	}
-	return 0.0;
+
+	float ret = 0.f;
+	if (is_index_display_setting(pchSection, pchSettingsKey)) {
+		JSONNode value = find_setting(steamvr_settings, driver_defaults, pchSection, pchSettingsKey);
+		if (value.isNumber()) {
+			ret = (float)value.asDouble();
+		}
+	}
+	SETTINGS_TRACE("GetFloat(%s, %s) -> %f", pchSection, pchSettingsKey, ret);
+	return ret;
 }
 
 // Driver requires a few string settings to initialize properly
@@ -105,6 +184,8 @@ Settings::GetString(const char *pchSection,
 {
 	if (peError)
 		*peError = vr::VRSettingsError_None;
+
+	SETTINGS_TRACE("GetString(%s, %s)", pchSection, pchSettingsKey);
 
 	auto get_string = [pchSection, pchSettingsKey](const JSONNode &root) -> std::optional<std::string> {
 		JSONNode section = root[pchSection];
